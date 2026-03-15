@@ -4,8 +4,8 @@ env:
   variables:
     AWS_DEFAULT_REGION: "ap-south-1"
     # Replace with your actual ID, but keep it in quotes
-    REPOSITORY_URI: "123456789012.dkr.ecr.ap-south-1.amazonaws.com/your-repo-name"
-
+    REPOSITORY_URI=404198732694.dkr.ecr.ap-south-1.amazonaws.com/ns/app3
+    IMAGE_TAG=latest
 phases:
   pre_build:
     commands:
