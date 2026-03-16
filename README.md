@@ -1,91 +1,145 @@
-DevOps Practice Project – Dist Directory
+## Setup
+#Clone the repository
+git clone https://github.com/Vennilavanguvi/Brain-Tasks-App.git
+cd Brain-Tasks-App
+#create Dockerfile                  FROM nginx:alpine
+                                    COPY dist/ /usr/share/nginx/html
+                                    EXPOSE 80
+                                    CMD ["nginx", "-g", "daemon off;"]
+docker build -t app3 .
+docker run -d -p 3000:80 app3
 
-This repository contains the production-ready build files (dist folder) for DevOps practice and deployment exercises.
+Host port : 3000
+Container : 80
 
-It is intentionally structured to help learners focus on CI/CD pipelines, hosting, containerization, and infrastructure setup rather than application development.
+Verify http://localhost:3000 in browser
 
-📁 What This Repository Contains
 
-dist/ – Compiled and production-ready static files
 
-HTML
+#Create ECR repo
+Amazon ECR > Private registry > Repositories > ns/app3
 
-CSS
+aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin [ACCOUNT_ID].dkr.ecr.ap-south-1.amazonaws.com
+docker tag app3:latest [ACCOUNT_ID].dkr.ecr.ap-south-1.amazonaws.com/ns/app3:latest
+docker push [ACCOUNT_ID].dkr.ecr.ap-south-1.amazonaws.com/ns/app3:latest
 
-JavaScript
 
-Assets (images, fonts, etc.)
+#Create cluster in AWS 
+Amazon Elastic Kubernetes Service > Clusters > funny-pop-rainbow
 
-These files are ready to deploy to:
+# deployment.yml
 
-Web servers (Nginx / Apache)
 
-Cloud platforms (AWS S3, Azure Blob, GCP Storage)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: brain-tasks-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: brain-task
+  template:
+    metadata:
+      labels:
+        app: brain-task
+    spec:
+      containers:
+      - name: brain-tasks-container
+        image: 404198732694.dkr.ecr.ap-south-1.amazonaws.com/ns/app3:latest
+        ports:
+        - containerPort: 80
 
-Containerized environments (Docker + Nginx)
 
-Kubernetes clusters
+# service.yml
 
-CI/CD pipeline demonstrations
+apiVersion: v1
+kind: Service
+metadata:
+  name: brain-task-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-type: "classic"
+spec:
+  type: LoadBalancer
+  selector:
+    app: brain-task
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
 
-🎯 Purpose of This Repository
 
-This repository is designed for:
+kubectl apply -f deployment.yml  
+kubectl apply -f service.yml
 
-DevOps beginners
+#deployment.yml points to your ECR repository, Kubernetes will pull the image from ECR and run it in the pods 
+#service.yml will Creates a Kubernetes Service & Exposes pods via LoadBalancer
 
-CI/CD practice
+C:\Users\cinderlla\Brain-Tasks-App>kubectl get svc
+NAME                 TYPE           CLUSTER-IP      EXTERNAL-IP                                                                     PORT(S)        AGE
+brain-task-service   LoadBalancer   10.100.249.87   k8s-default-braintas-f4c61ad7ac-387358f25cae6e7a.elb.ap-south-1.amazonaws.com   80:31154/TCP   35h
 
-Deployment pipeline testing
+#Verify External IP in browser
 
-Docker & Kubernetes deployment exercises
+#Created repo in gitHub > https://github.com/kestersam30-stack/Project3
 
-Web server configuration practice
+#Created code build
+Developer Tools > CodeBuild > Build projects > brain-tasks-build
+ 
+# buildspec.yml
+version: 0.2
 
-Reverse proxy and load balancer setup
+env:
+  variables:
+    AWS_DEFAULT_REGION: "ap-south-1"
+    REPOSITORY_URI: "404198732694.dkr.ecr.ap-south-1.amazonaws.com/ns/app3"
+    IMAGE_TAG: "latest"
+    CLUSTER_NAME: "funny-pop-rainbow"
 
-The goal is to simulate real-world deployment scenarios using already built application files.
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin 404198732694.dkr.ecr.ap-south-1.amazonaws.com
 
-❓ Why is there NO package.json?
+  build:
+    commands:
+      - echo Build started on `date`
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
 
-You may notice that this repository does not include:
+  post_build:
+    commands:
+      - echo Pushing Docker image
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
 
-package.json
+      - echo Updating kubeconfig
+      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
 
-node_modules
+      - echo Deploying to EKS
+      - kubectl apply -f deployment.yaml
+      - kubectl apply -f service.yaml
 
-Source code (src/)
+artifacts:
+  files:
+    - '**/*'
 
-Build tools configuration
 
-✅ Reason:
+The buildspec.yml file defines the build steps executed by AWS CodeBuild. It authenticates with Amazon ECR, builds the Docker image, pushes the image to ECR, and deploys the updated container to the EKS cluster using kubectl.
 
-This repository only contains the final production build output (dist), not the development source code.
+#Create Pipeline 
+Developer Tools > CodePipeline > Pipelines > Brain-task-PL
 
-In a typical project:
+#Logs are also viewed
 
-Developers write source code.
 
-The project is built using tools like:
 
-Node.js
 
-Webpack
-
-Vite
-
-React (or other frameworks)
-
-A dist/ folder is generated.
-
-Only the production build is deployed to servers.
-
-This repository represents step 4 only.
-
-Since this is already the compiled output:
-
-No dependencies are required
-
-No build process is required
-
-No package.json is needed
+#Purpose: 
+Stores the application code and configuration files.
+#Process:
+Developer pushes code changes to GitHub.
+CodePipeline monitors the repository.
+When a commit is pushed, the pipeline automatically triggers.
+#Result:
+Pipeline execution starts automatically.
