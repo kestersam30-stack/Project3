@@ -4,7 +4,7 @@ git clone https://github.com/Vennilavanguvi/Brain-Tasks-App.git
 cd Brain-Tasks-App
 #create Dockerfile                  FROM nginx:alpine
                                     COPY dist/ /usr/share/nginx/html
-                                    EXPOSE 80
+                                    EXPOSE 3000
                                     CMD ["nginx", "-g", "daemon off;"]
 docker build -t app3 .
 docker run -d -p 3000:80 app3
